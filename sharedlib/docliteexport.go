@@ -148,7 +148,12 @@ func Find(name, filter string) *C.char {
 //export UpdateOneDoc
 func UpdateOneDoc(id int64, doc string, name string) {
 	collection := getColFromName(name)
-	collection.DeleteOne(id)
+	document := make(map[string]interface{})
+	err := json.Unmarshal([]byte(doc), &document)
+	if err != nil {
+		return
+	}
+	collection.UpdateOneDoc(id, document)
 }
 
 func getColFromName(name string) *doclite.Collection {
