@@ -26,6 +26,7 @@ type Btree struct {
 	Pages          []int64 // the pages this bree occupies
 
 	roots         []*Node
+
 	db            *DB
 	initBtreeRoot bool
 	nDocMutex     sync.Mutex
@@ -84,9 +85,13 @@ func (t *Btree) diskInitBtree() {
 		node := t.createNode(maxInt64(int64(i)*MinKeys, 1), data, true)
 		node.document.offset = t.Pages[i] * pageSize
 		node.document.data, _ = node.children.read(node)
+
 		node.numChildren = MinKeys
 		if i+1 == t.NumRoots {
 			node.numChildren = int(t.NumDocuments % int64(MinKeys))
+			if node.numChildren == 0 {
+				node.numChildren = MinKeys
+			}
 		}
 		t.roots = append(t.roots, node)
 	}
