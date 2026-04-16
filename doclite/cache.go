@@ -164,7 +164,9 @@ func (c *Cache) Find(filter interface{}, start int) ([]interface{}, int) {
 	return c.FindNodes(filter, d, start)
 }
 
-// Find gets all nodes matching a criterions specified by filter
+// FindNodes gets all nodes matching a criterions specified by filter.
+// Each element in the returned slice is an independent object — no two
+// elements share the same underlying pointer.
 func (c *Cache) FindNodes(filter, object interface{}, start int) ([]interface{}, int) {
 	countOfFound := 0
 	nodes := []interface{}{}
@@ -180,18 +182,18 @@ func (c *Cache) FindNodes(filter, object interface{}, start int) ([]interface{},
 			continue
 		}
 		buf := n.document.data
-		err = json.Unmarshal(buf, &object)
 
-		if err != nil {
+		// Unmarshal into a fresh map so each result is independent.
+		var doc map[string]interface{}
+		if err := json.Unmarshal(buf, &doc); err != nil {
 			continue
 		}
 
-		docMap := toMap(object)
-		if !checkMatch(filterMap, docMap) {
+		if !checkMatch(filterMap, doc) {
 			continue
 		}
 
-		nodes = append(nodes, object)
+		nodes = append(nodes, doc)
 	}
 
 	return nodes, c.node.numChildren
