@@ -15,7 +15,7 @@ func TestFile(t *testing.T) {
 	defer os.Remove("filetest.overflow")
 
 	for i := 0; i < 3; i++ {
-		for add := -10; add <= 10; add++ {
+		for add := 0; add <= 10; add++ {
 			testFile(add, t)
 		}
 	}

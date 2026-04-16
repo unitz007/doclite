@@ -86,11 +86,12 @@ func (t *Btree) diskInitBtree() {
 		node.document.offset = t.Pages[i] * pageSize
 		node.document.data, _ = node.children.read(node)
 
-		node.numChildren = MinKeys
+		node.numChildren = MinKeys - 1
 		if i+1 == t.NumRoots {
-			node.numChildren = int(t.NumDocuments % int64(MinKeys))
-			if node.numChildren == 0 {
-				node.numChildren = MinKeys
+			// For the last root, numChildren = total docs in this root minus 1 (the root itself)
+			node.numChildren = int(t.NumDocuments - int64(i)*MinKeys) - 1
+			if node.numChildren < 0 {
+				node.numChildren = MinKeys - 1
 			}
 		}
 		t.roots = append(t.roots, node)
@@ -136,7 +137,13 @@ func (t *Btree) Insert(data []byte) int64 {
 	} else {
 		if (id-1)%MinKeys == 0 {
 			if fromPool {
-				t.Update(id, data)
+				existingNode, err := t.Find(id)
+				if err != nil {
+					// Root for this ID no longer exists; recreate it
+					t.addRoot(node)
+				} else {
+					existingNode.document.data = data
+				}
 			} else {
 				t.addRoot(node)
 			}
