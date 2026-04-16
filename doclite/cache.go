@@ -3,8 +3,9 @@ package doclite
 import (
 	"encoding/json"
 	"errors"
-	"github.com/gammazero/deque"
 	"reflect"
+
+	"github.com/gammazero/deque"
 )
 
 var (
@@ -183,7 +184,7 @@ func (c *Cache) FindNodes(filter, object interface{}, start int) ([]interface{},
 		}
 		buf := n.document.data
 
-		// Unmarshal into a fresh map so each result is independent.
+		// Unmarshal into a fresh map for match checking.
 		var doc map[string]interface{}
 		if err := json.Unmarshal(buf, &doc); err != nil {
 			continue
@@ -193,6 +194,18 @@ func (c *Cache) FindNodes(filter, object interface{}, start int) ([]interface{},
 			continue
 		}
 
+		// If object is a pointer to a struct, unmarshal into a fresh copy
+		// of that type so each result is independently populated.
+		if object != nil {
+			objType := reflect.TypeOf(object)
+			if objType.Kind() == reflect.Ptr {
+				newObj := reflect.New(objType.Elem()).Interface()
+				if err := json.Unmarshal(buf, newObj); err == nil {
+					nodes = append(nodes, newObj)
+					continue
+				}
+			}
+		}
 		nodes = append(nodes, doc)
 	}
 
