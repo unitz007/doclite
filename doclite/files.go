@@ -102,6 +102,9 @@ func (c *Cache) overflowDoc(n *Node) error {
 func (c *Cache) insertOfn(ofn *overflowNode) {
 	nodes := c.db.getOverflow(c.tree.Name)
 	mid := indexOfOfn(ofn.ID, nodes, c.tree.lenOverflow)
+	if mid < 0 {
+		mid = 0
+	}
 	if mid < c.tree.lenOverflow {
 		if nodes[mid].ID == ofn.ID {
 			return
@@ -117,7 +120,7 @@ func (c *Cache) insertOfn(ofn *overflowNode) {
 func (c *Cache) getOverflowData(n *Node) *overflowNode {
 	nodes := c.db.getOverflow(c.tree.Name)
 	mid := indexOfOfn(n.document.id, nodes, c.tree.lenOverflow)
-	if mid < c.tree.lenOverflow {
+	if mid >= 0 && mid < c.tree.lenOverflow {
 		if nodes[mid].ID == n.document.id {
 			return nodes[mid]
 		}
