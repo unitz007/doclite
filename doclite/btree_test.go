@@ -257,3 +257,16 @@ func TestBinarySearch(t *testing.T) {
 		t.Errorf(" wrong node")
 	}
 }
+func TestBinarySearchEmptySlice(t *testing.T) {
+	result := indexOfNodes(int64(1), []*Node{}, 0)
+	if result != -1 {
+		t.Errorf("indexOfNodes with empty slice returned %d, want -1", result)
+	}
+}
+
+func TestBinarySearchOfnEmptySlice(t *testing.T) {
+	result := indexOfOfn(int64(1), []*overflowNode{}, 0)
+	if result != -1 {
+		t.Errorf("indexOfOfn with empty slice returned %d, want -1", result)
+	}
+}
