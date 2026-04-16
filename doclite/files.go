@@ -3,7 +3,6 @@ package doclite
 import (
 	"encoding/binary"
 	"encoding/json"
-	"os"
 	"reflect"
 	"strings"
 	"sync"
@@ -158,7 +157,6 @@ func (c *Cache) getOverflowData(n *Node) *overflowNode {
 	return &overflowNode{}
 }
 func (c *Cache) cutOverflowfile(start, end int64) {
-	c.db.overflowfile.Seek(end, os.SEEK_SET)
 	readWriteMutex.Lock()
 	defer readWriteMutex.Unlock()
 	buf := make([]byte, 1000)
