@@ -217,7 +217,18 @@ func (c *Cache) checkRootMatched(filter interface{}) interface{} {
 func (c *Cache) DeleteAll(filter interface{}, doc interface{}) []int64 {
 	filterMap := toMap(filter)
 	ids := make([]int64, 0)
-	for i := 0; i <= c.node.numChildren; i++ {
+
+	// Check the root node for a match (consistent with Find via checkRootMatched)
+	rootBuf := c.node.document.data
+	rootDoc := make(map[string]interface{})
+	if err := json.Unmarshal(rootBuf, &rootDoc); err == nil {
+		if checkMatch(filterMap, toMap(rootDoc)) {
+			c.Delete(c.node.document.id)
+			ids = append(ids, c.node.document.id)
+		}
+	}
+
+	for i := 1; i <= c.node.numChildren; i++ {
 		n, err := c.get(c.node.document.id + int64(i))
 		if n == nil || err != nil {
 			continue
