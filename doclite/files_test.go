@@ -16,6 +16,8 @@ func TestFile(t *testing.T) {
 
 	for i := 0; i < 3; i++ {
 		for add := 0; add <= 10; add++ {
+			os.Remove("filetest")
+			os.Remove("filetest.overflow")
 			testFile(add, t)
 		}
 	}
@@ -23,12 +25,7 @@ func TestFile(t *testing.T) {
 }
 
 func testFile(add int, t *testing.T) {
-	node := &Node{document: &Document{id: int64(100)}}
 	db := OpenDB("filetest")
-	c := NewCache(db, db.rootTree)
-	c.node = node
-	c.ids = make(map[int64]*Node)
-	node.children = c
 
 	type simpleStruct struct {
 		Name string
@@ -50,14 +47,19 @@ func testFile(add int, t *testing.T) {
 		}
 		n, err := db.rootTree.Find(id)
 		if err != nil {
-			t.Errorf("Error while writing data %v", err)
+			t.Errorf("Error while finding data %v", err)
+			continue
+		}
+		if n == nil {
+			t.Errorf("Find returned nil node for id %d", id)
+			continue
 		}
 		nodes = append(nodes, n)
 
 	}
 
 	ss := &simpleStruct{}
-	for i := 0; i < numOfInsert; i++ {
+	for i := 0; i < len(nodes); i++ {
 		buf := nodes[i].document.data
 
 		if dataSize+add-len(buf) > 1 {
@@ -69,8 +71,8 @@ func testFile(add int, t *testing.T) {
 			t.Errorf("%s", err)
 		}
 	}
-	for i := 0; i < numOfInsert; i++ {
-		node.children.Delete(nodes[i].document.id)
+	for i := 0; i < len(nodes); i++ {
+		db.rootTree.Delete(nodes[i].document.id)
 	}
 
 	db.Close()
