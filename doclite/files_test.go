@@ -43,7 +43,12 @@ func testFile(add int, t *testing.T) {
 			continue
 		}
 
-		n, err := db.rootTree.Find(db.rootTree.Insert(buf))
+		id, insertErr := db.rootTree.Insert(buf)
+		if insertErr != nil {
+			t.Errorf("Error while inserting data %v", insertErr)
+			continue
+		}
+		n, err := db.rootTree.Find(id)
 		if err != nil {
 			t.Errorf("Error while writing data %v", err)
 		}
