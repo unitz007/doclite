@@ -2,6 +2,7 @@ package doclite
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"testing"
 )
@@ -11,7 +12,10 @@ func testBtree(bt *Btree, t *testing.T) *Btree {
 		numOfInsert = 100
 	)
 	for i := 0; i < numOfInsert; i++ {
-		bt.Insert([]byte(fmt.Sprintf("%d docklite", i)))
+		_, err := bt.Insert([]byte(fmt.Sprintf("%d docklite", i)))
+		if err != nil {
+			t.Errorf("Insert failed: %v", err)
+		}
 	}
 
 	if bt.NumDocuments != int64(numOfInsert) {
@@ -76,7 +80,10 @@ func TestBtreeDiskInitExactMultiple(t *testing.T) {
 
 	// Insert exactly 2 * MinKeys documents
 	for i := 0; i < numDocs; i++ {
-		bt.Insert([]byte(fmt.Sprintf("doc-%d", i)))
+		_, err := bt.Insert([]byte(fmt.Sprintf("doc-%d", i)))
+		if err != nil {
+			t.Errorf("Insert(%d) failed: %v", i, err)
+		}
 	}
 
 	// Verify all documents were inserted
@@ -150,7 +157,10 @@ func TestBtreePoolReuseRootBoundary(t *testing.T) {
 	// Insert enough documents to create at least 2 roots (2 * MinKeys)
 	numDocs := 2 * MinKeys
 	for i := 0; i < numDocs; i++ {
-		id := bt.Insert([]byte(fmt.Sprintf("doc-%d", i)))
+		id, err := bt.Insert([]byte(fmt.Sprintf("doc-%d", i)))
+		if err != nil {
+			t.Fatalf("Insert(%d) failed: %v", i, err)
+		}
 		if id == -1 {
 			t.Fatalf("Insert(%d) returned -1 during initial insert", i)
 		}
@@ -183,7 +193,11 @@ func TestBtreePoolReuseRootBoundary(t *testing.T) {
 	newNumDocs := numDocs
 	for i := 0; i < newNumDocs; i++ {
 		data := []byte(fmt.Sprintf("reused-doc-%d", i))
-		id := bt.Insert(data)
+		id, err := bt.Insert(data)
+		if err != nil {
+			t.Errorf("Insert(%d) failed during pool reuse: %v", i, err)
+			continue
+		}
 		if id == -1 {
 			t.Errorf("Insert(%d) returned -1 during pool reuse", i)
 			continue
@@ -220,6 +234,109 @@ func TestBtreePoolReuseRootBoundary(t *testing.T) {
 	if bt.NumRoots < originalRootCount {
 		t.Errorf("NumRoots decreased from %d to %d after pool reuse; data may have been lost",
 			originalRootCount, bt.NumRoots)
+	}
+}
+
+// TestBtreeMaxSizeEnforced verifies that Insert returns ErrTreeFull when
+// the number of documents reaches BtreeMaxSize, and that insertions from the
+// pool (reusing deleted IDs) are still allowed after the limit is hit.
+//
+// To avoid inserting millions of documents in the test, we directly set
+// NumDocuments to simulate a full tree, and only verify the boundary checks.
+func TestBtreeMaxSizeEnforced(t *testing.T) {
+	db := &DB{metadata: &Meta{}}
+	bt := db.newBtree("")
+
+	// --- Part 1: Insert below the limit should succeed ---
+	// Insert one document to verify normal operation works
+	id, err := bt.Insert([]byte("doc-0"))
+	if err != nil {
+		t.Fatalf("normal Insert failed: %v", err)
+	}
+	if id != 1 {
+		t.Fatalf("expected id=1, got %d", id)
+	}
+
+	// --- Part 2: Simulate a full tree by setting NumDocuments directly ---
+	bt.NumDocuments = BtreeMaxSize
+
+	// Insert should fail with ErrTreeFull
+	id, err = bt.Insert([]byte("doc-overflow"))
+	if err == nil {
+		t.Fatal("Insert beyond BtreeMaxSize should return an error")
+	}
+	if !errors.Is(err, ErrTreeFull) {
+		t.Fatalf("expected ErrTreeFull, got: %v", err)
+	}
+	if id != -1 {
+		t.Fatalf("expected id=-1 on ErrTreeFull, got: %d", id)
+	}
+
+	// Verify NumDocuments was not incremented
+	if bt.NumDocuments != BtreeMaxSize {
+		t.Fatalf("NumDocuments should remain %d after failed insert, got %d",
+			BtreeMaxSize, bt.NumDocuments)
+	}
+
+	// --- Part 3: Verify boundary at exactly BtreeMaxSize - 1 ---
+	bt.NumDocuments = BtreeMaxSize - 1
+
+	id, err = bt.Insert([]byte("doc-at-limit"))
+	if err != nil {
+		t.Fatalf("Insert at BtreeMaxSize-1 should succeed, got: %v", err)
+	}
+	if bt.NumDocuments != BtreeMaxSize {
+		t.Fatalf("expected NumDocuments=%d after insert, got %d",
+			BtreeMaxSize, bt.NumDocuments)
+	}
+
+	// --- Part 4: Verify boundary at exactly BtreeMaxSize ---
+	id, err = bt.Insert([]byte("doc-over"))
+	if err == nil {
+		t.Fatal("Insert at BtreeMaxSize should return ErrTreeFull")
+	}
+	if !errors.Is(err, ErrTreeFull) {
+		t.Fatalf("expected ErrTreeFull at BtreeMaxSize, got: %v", err)
+	}
+	if id != -1 {
+		t.Fatalf("expected id=-1 on ErrTreeFull, got: %d", id)
+	}
+
+	// Verify NumDocuments was not incremented
+	if bt.NumDocuments != BtreeMaxSize {
+		t.Fatalf("NumDocuments should remain %d after failed insert, got %d",
+			BtreeMaxSize, bt.NumDocuments)
+	}
+
+	// --- Part 5: Pool-based insertions should bypass the limit ---
+	// Add an ID to the pool, then verify insert succeeds despite the tree being full
+	bt.Pool = append(bt.Pool, int64(999))
+	id, err = bt.Insert([]byte("doc-reused"))
+	if err != nil {
+		t.Fatalf("pool-based Insert after BtreeMaxSize should succeed, got: %v", err)
+	}
+	if id != 999 {
+		t.Fatalf("expected reused id=999, got: %d", id)
+	}
+
+	// NumDocuments should still be BtreeMaxSize (pool reuse doesn't increment)
+	if bt.NumDocuments != BtreeMaxSize {
+		t.Fatalf("NumDocuments should still be %d after pool reuse, got %d",
+			BtreeMaxSize, bt.NumDocuments)
+	}
+
+	// Pool should be empty now
+	if len(bt.Pool) != 0 {
+		t.Fatalf("expected empty pool after reuse, got %d items", len(bt.Pool))
+	}
+
+	// --- Part 6: With empty pool and full tree, insert should fail again ---
+	id, err = bt.Insert([]byte("doc-still-full"))
+	if err == nil {
+		t.Fatal("Insert with empty pool and full tree should return ErrTreeFull")
+	}
+	if !errors.Is(err, ErrTreeFull) {
+		t.Fatalf("expected ErrTreeFull, got: %v", err)
 	}
 }
 

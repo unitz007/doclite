@@ -84,7 +84,7 @@ func (c *Collection) Insert(doc interface{}) (int64, error) {
 		return -1, err
 	}
 	defer c.Commit()
-	return c.tree.Insert(buf), nil
+	return c.tree.Insert(buf)
 }
 
 // DeleteOne deletes a document from the database
