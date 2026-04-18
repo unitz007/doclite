@@ -2,6 +2,7 @@ package doclite
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"sync"
 
@@ -123,7 +124,7 @@ func (db *DB) initBtree() (*Btree, error) {
 
 	buf := make([]byte, db.metadata.RootTreeSize)
 	tree := &Btree{db: db, findPool: make(map[int64]int64)}
-	db.file.Seek(db.metadata.RootTreeOffset, os.SEEK_SET)
+	db.file.Seek(db.metadata.RootTreeOffset, io.SeekStart)
 
 	_, err := db.file.Read(buf)
 
@@ -142,7 +143,7 @@ func (db *DB) initBtree() (*Btree, error) {
 
 func (db *DB) getMeta() *Meta {
 	buf := make([]byte, metaDataLen)
-	db.file.Seek(0, os.SEEK_SET)
+	db.file.Seek(0, io.SeekStart)
 	db.file.Read(buf)
 	db.metadata = &Meta{}
 	bson.Unmarshal(buf[:], db.metadata)
@@ -152,7 +153,7 @@ func (db *DB) getMeta() *Meta {
 func (db *DB) moveOverflow() error {
 	db.overflowfile = openFile(fmt.Sprintf("%s.overflow", db.file.Name()), os.O_RDWR|os.O_CREATE)
 
-	db.file.Seek(db.metadata.OverflowDataOffset, os.SEEK_SET)
+	db.file.Seek(db.metadata.OverflowDataOffset, io.SeekStart)
 	//TODO read in chucks
 	buf := make([]byte, db.metadata.OverflowSize)
 	_, err := db.file.Read(buf)
