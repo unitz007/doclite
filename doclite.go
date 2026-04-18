@@ -93,6 +93,7 @@ func (c *Collection) Insert(doc interface{}) (int64, error) {
 // DeleteOne deletes a document from the database
 // When document is deleted a new document take up it space and id
 func (c *Collection) DeleteOne(id int64) {
+	defer c.Commit()
 	c.tree.Delete(id)
 }
 
