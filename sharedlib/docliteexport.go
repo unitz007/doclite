@@ -47,7 +47,12 @@ func ConvertToStruct(m map[string]interface{}, s interface{}) error {
 //
 //export ConnectDB
 func ConnectDB(filename string) {
-	externalDB = doclite.Connect(filename)
+	var err error
+	externalDB, err = doclite.Connect(filename)
+	if err != nil {
+		fmt.Println("failed to connect to database:", err)
+		return
+	}
 	Base()
 }
 

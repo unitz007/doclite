@@ -38,9 +38,12 @@ func (c *Collection) GetCol() *doclite.Btree {
 }
 
 // Connect returns an instance of Doclite object database
-func Connect(filename string) *Doclite {
-	db := doclite.OpenDB(filename)
-	return &Doclite{db: db}
+func Connect(filename string) (*Doclite, error) {
+	db, err := doclite.OpenDB(filename)
+	if err != nil {
+		return nil, err
+	}
+	return &Doclite{db: db}, nil
 }
 
 /*

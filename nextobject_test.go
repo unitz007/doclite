@@ -17,7 +17,10 @@ import (
 // NextObject (not Next), so that all subsequent results within the next cache
 // cursor are unmarshaled into the caller's struct.
 func TestNextObjectAcrossCacheCursors(t *testing.T) {
-	db := Connect("test_nextobject_cursors.doclite")
+	db, err := Connect("test_nextobject_cursors.doclite")
+	if err != nil {
+		t.Fatalf("failed to connect to database: %v", err)
+	}
 	defer func() {
 		db.Close()
 		os.Remove("test_nextobject_cursors.doclite")
@@ -92,7 +95,10 @@ func TestNextObjectAcrossCacheCursors(t *testing.T) {
 // raw map. This is the core acceptance criterion: the object parameter must be
 // propagated through recursive cache cursor boundaries.
 func TestNextObjectStructsAtBoundary(t *testing.T) {
-	db := Connect("test_nextobject_boundary.doclite")
+	db, err := Connect("test_nextobject_boundary.doclite")
+	if err != nil {
+		t.Fatalf("failed to connect to database: %v", err)
+	}
 	defer func() {
 		db.Close()
 		os.Remove("test_nextobject_boundary.doclite")
