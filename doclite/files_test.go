@@ -27,7 +27,10 @@ func testFile(add int, t *testing.T) {
 	defer os.Remove("filetest")
 	defer os.Remove("filetest.overflow")
 
-	db := OpenDB("filetest")
+	db, err := OpenDB("filetest")
+	if err != nil {
+		t.Fatalf("failed to open database: %v", err)
+	}
 
 	type simpleStruct struct {
 		Name string
