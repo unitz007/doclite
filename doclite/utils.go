@@ -101,6 +101,8 @@ loop:
 		if field.IsZero() {
 			switch field.Kind() {
 			case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64:
+			case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+			case reflect.Float32, reflect.Float64:
 			default:
 				continue loop
 			}
