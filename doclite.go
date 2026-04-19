@@ -99,6 +99,7 @@ func (c *Collection) DeleteOne(id int64) {
 
 // Delete remove all document matching filter from the database
 func (c *Collection) Delete(filter, doc interface{}) {
+	defer c.Commit()
 	c.tree.DeleteAll(filter, doc)
 }
 
